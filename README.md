@@ -8,11 +8,11 @@ It works by **encrypting your app’s bundle identifier** using a shared AES-256
 
 ## ✅ Features
 
-- 🔒 AES-256-GCM encryption
-- 📦 Zero-dependency, clean Swift implementation
-- 🔧 Easy developer integration
-- 🧵 Swift Concurrency support
-- 🧰 No SDK bloat
+- 🔒 AES-256-GCM encryption  
+- 📦 Zero-dependency, clean Swift implementation  
+- 🔧 Easy developer integration  
+- 🧵 Swift Concurrency support  
+- 🧰 No SDK bloat  
 
 ---
 
@@ -41,7 +41,7 @@ Create a `.env` file at the root of your app project:
 SECURE_APP_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 ```
 
-### 2. Load the key from your environment
+### 2. Load the key and initialize the secure session
 
 Use a helper (like [DotEnv](https://github.com/swift-dotenv/swift-dotenv)) to read the `.env` file.
 
@@ -49,41 +49,75 @@ Use a helper (like [DotEnv](https://github.com/swift-dotenv/swift-dotenv)) to re
 import SecureAppRequest
 import Foundation
 
-// Load environment variable
-let key = ProcessInfo.processInfo.environment["SECURE_APP_KEY"]!
-```
+// MARK: - App setup (e.g., in AppDelegate or SceneDelegate)
 
-### 3. Make a secure request
-
-```swift
-let secureSession = try SecureURLSession(encryptionKey: key)
-
-let request = URLRequest(url: URL(string: "https://api.example.com/protected")!)
-
-let (data, response) = try await secureSession.data(for: request)
-
-if let httpResponse = response as? HTTPURLResponse {
-    print("Status code: \(httpResponse.statusCode)")
+guard let keyString = ProcessInfo.processInfo.environment["SECURE_APP_KEY"] else {
+    fatalError("SECURE_APP_KEY environment variable not set.")
+}
+guard let keyData = keyString.data(using: .utf8), keyData.count == 32 else {
+    fatalError("SECURE_APP_KEY must be a 32-byte UTF-8 string.")
 }
 
-print("Response body: \(String(data: data, encoding: .utf8) ?? "")")
+let secureSession: SecureURLSession
+do {
+    secureSession = try SecureURLSession(secretKeyData: keyData)
+} catch {
+    fatalError("Failed to initialize SecureURLSession: \(error)")
+}
+```
+
+### 3. Send a secure request from anywhere in the app
+
+```swift
+func sendSecureRequest() async {
+    let urlString = "https://api.example.com/protected"
+    guard let url = URL(string: urlString) else { return }
+
+    var request = URLRequest(url: url)
+    request.httpMethod = "GET"
+
+    // ✅ Enable encrypted bundle identifier
+    request.wantsEncryptedBundleIdentifier = true
+
+    do {
+        let (data, response) = try await secureSession.data(for: request)
+        
+        if let httpResponse = response as? HTTPURLResponse {
+            print("Status code: \(httpResponse.statusCode)")
+        }
+
+        if let body = String(data: data, encoding: .utf8) {
+            print("Response: \(body)")
+        }
+    } catch {
+        print("Request error: \(error)")
+    }
+}
 ```
 
 ### 4. What happens under the hood?
 
 - Your app's bundle identifier (`Bundle.main.bundleIdentifier`) is **AES-256 encrypted**
-- It is added to the request as a custom HTTP header:
+- It is sent as a custom HTTP header:
 
 ```http
 X-App-Auth: <encrypted_payload>
 ```
 
-- The server can **decrypt this** using the same shared key and validate that the request originated from your app.
+- Your backend decrypts it using the same shared key and validates that it matches an expected bundle identifier.
+
+---
+
+## 🧪 Example Server Decryption (Optional)
+
+A very basic server-side decryption pseudocode (e.g., in Node.js, Python, Go) would:
+
+1. Read the `X-App-Auth` header  
+2. Decrypt it using the shared key (AES-GCM)  
+3. Validate the bundle ID against a whitelist
 
 ---
 
 ## 👨‍💻 Author
 
-Made by Avinash96-gthb
-
----
+Made by [Avinash96-gthb](https://github.com/Avinash96-gthb)
