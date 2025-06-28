@@ -24,7 +24,7 @@ Using **Swift Package Manager**:
 2. Paste the repo URL:
 
    ```
-   https://github.com/your-username/SecureAppRequest-Swift
+   https://github.com/SecureAppRequest/SecureAppRequest-Swift
    ```
 
 3. Select the version and add it to your project.
