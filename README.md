@@ -41,7 +41,20 @@ Create a `.env` file at the root of your app project:
 SECURE_APP_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 ```
 
-### 2. Load the key and initialize the secure session
+### 2. Set up a shared secureSessionManager
+
+in a SecureSessionManager.swift file
+
+```swift
+import Foundation
+import SecureAppRequest
+
+class SecureSessionManager {
+    static var shared: SecureURLSession!
+}
+```
+
+### 3. Load the key and initialize the secure session
 
 Use a helper (like [DotEnv](https://github.com/swift-dotenv/swift-dotenv)) to read the `.env` file.
 
@@ -58,15 +71,15 @@ guard let keyData = keyString.data(using: .utf8), keyData.count == 32 else {
     fatalError("SECURE_APP_KEY must be a 32-byte UTF-8 string.")
 }
 
-let secureSession: SecureURLSession
-do {
-    secureSession = try SecureURLSession(secretKeyData: keyData)
+ do {
+     let session = try SecureURLSession(secretKeyData: keyData)
+     SecureSessionManager.shared = session
 } catch {
-    fatalError("Failed to initialize SecureURLSession: \(error)")
+        fatalError("Failed to initialize SecureURLSession: \(error)")
 }
 ```
 
-### 3. Send a secure request from anywhere in the app
+### 4. Send a secure request from anywhere in the app
 
 ```swift
 func sendSecureRequest() async {
@@ -95,7 +108,7 @@ func sendSecureRequest() async {
 }
 ```
 
-### 4. What happens under the hood?
+### 5. What happens under the hood?
 
 - Your app's bundle identifier (`Bundle.main.bundleIdentifier`) is **AES-256 encrypted**
 - It is sent as a custom HTTP header:
